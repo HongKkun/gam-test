@@ -71,7 +71,7 @@ python -m http.server 8000      # index.html 을 더블클릭하면 안 됩니�
 | 🩺 | 얼마나 오래 사나 | Our World in Data |
 
 ## Gemini 촌평 (선택)
-
+## gemini 촌평 (삭제)
 ```
 Vercel → Settings → Environment Variables
   GEMINI_API_KEY = (aistudio.google.com 에서 받은 키)
