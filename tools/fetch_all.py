@@ -124,6 +124,10 @@ SOURCES: list[tuple[str, str, str]] = [
      "?format=geojson&starttime=2000-01-01&endtime=2024-12-31"
      "&minmagnitude=3.0&minlatitude=33&maxlatitude=39.5"
      "&minlongitude=124&maxlongitude=132&limit=20000"),
+
+    ("nobel_laureates.json",
+     "노벨상 수상자 전원 1901~현재 · 전체 항목 (노벨재단 공식 API 2.1)",
+     "https://api.nobelprize.org/2.1/laureates?limit=2000"),
 ]
 
 

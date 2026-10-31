@@ -709,6 +709,114 @@ topic(
            "깊이)과 다른 값입니다. 넓은 격자의 평균이어서 한 동네에만 쏟아진 "
            "폭설은 작게 잡힙니다.")
 
+# ── 12. 노벨상 ───────────────────────────────────────────────────
+# 세는 방법 (주제.md 에서 정한 것)
+#   기간 1901~2026년 전부 · 단체 수상도 넣는다 · 거부한 수상도 센다
+#   두 번 받은 사람은 수상 건마다 센다
+#   나이 = 수상 연도 - 출생 연도. 단체는 생년월일이 없어 나이 문항에서만 뺀다
+#   여성 비율은 개인 수상만으로 센다 (단체에는 성별이 없다)
+#   출생국은 태어날 당시 나라 이름(birth.place.country)으로 센다
+NB = []
+for x in load_json("nobel_laureates.json")["laureates"]:
+    place = (x.get("birth") or {}).get("place") or {}
+    for p in x["nobelPrizes"]:
+        NB.append({"name": (x.get("knownName") or x.get("orgName"))["en"],
+                   "person": "orgName" not in x, "gender": x.get("gender"),
+                   "born": int(x["birth"]["year"]) if "birth" in x else None,
+                   "born_in": (place.get("country") or {}).get("en"),
+                   "year": int(p["awardYear"]), "cat": p["category"]["en"]})
+nb_first = min(r["year"] for r in NB)
+nb_last = max(r["year"] for r in NB)
+NP = [r for r in NB if r["person"]]
+for r in NP:
+    r["age"] = r["year"] - r["born"]
+age_avg = mean(r["age"] for r in NP)
+youngest = min(NP, key=lambda r: r["age"])
+oldest = max(NP, key=lambda r: r["age"])
+age_old = mean(r["age"] for r in NP if r["year"] <= 1950)
+age_new = mean(r["age"] for r in NP if r["year"] >= 2001)
+age_diff = age_new - age_old
+
+women = sum(1 for r in NP if r["gender"] == "female")
+women_pct = women / len(NP) * 100
+
+# (연도, 분야) 한 번의 시상에 수상자가 한 명(한 단체)뿐이면 단독 수상
+SCIENCE = ("Physics", "Chemistry", "Physiology or Medicine", "Economic Sciences")
+sci = Counter((r["year"], r["cat"]) for r in NB
+              if r["cat"] in SCIENCE and r["year"] >= 2001)
+sole = sum(1 for n in sci.values() if n == 1)
+sole_pct = sole / len(sci) * 100
+
+KOREA = ("Korea", "South Korea")
+kor_born = sorted({(r["year"], r["name"], r["born_in"]) for r in NP
+                   if r["born_in"] in KOREA})
+
+
+def nearest(options, values, x):
+    """x 에 가장 가까운 보기를 정답으로 고른다."""
+    return options[min(range(len(values)), key=lambda i: abs(values[i] - x))]
+
+
+topic(
+    "nobel", "🏅", "노벨상은 누가 받나",
+    f"{nb_first}년부터 {nb_last}년까지, 노벨상 수상자 전원",
+    "노벨재단 공식 API 2.1", "https://www.nobelprize.org/about/developer-zone/",
+    [
+        slider("n1", f"{nb_first}~{nb_last}년, 노벨상 개인 수상자의 수상 당시 평균 "
+               "나이(수상 연도 - 출생 연도)는 몇 살일까요?",
+               age_avg, "세", 0, 100, 1,
+               f"{nb_first}~{nb_last}년 개인 수상 {len(NP)}건(두 번 받으면 각각, "
+               f"단체 제외)의 '수상 연도 - 출생 연도'를 평균하면 {age_avg:.1f}세 "
+               f"(최연소 {youngest['name']} {youngest['age']}세 · "
+               f"최고령 {oldest['name']} {oldest['age']}세)",
+               "젊은 천재의 이미지가 강하지만, 업적이 인정받기까지 수십 년이 "
+               "걸립니다."),
+        choice("n2", f"{nb_first}~{nb_last}년, 개인 수상(두 번 받은 사람은 두 번 셈) "
+               "가운데 여성은 몇 %일까요?",
+               ["약 3%", "약 7%", "약 15%", "약 25%"],
+               nearest(["약 3%", "약 7%", "약 15%", "약 25%"], [3, 7, 15, 25],
+                       women_pct),
+               f"{nb_first}~{nb_last}년 개인 수상 {len(NP)}건(두 번 받으면 각각, "
+               f"단체 제외) 중 여성 수상 {women}건 ({women_pct:.1f}%)",
+               "최근 여성 수상 소식이 자주 들려서, 지난 120여 년 전체의 비율도 "
+               "높게 짐작하기 쉽습니다."),
+        choice("n3", f"2001~{nb_last}년 물리·화학·생리의학·경제학상에서, 한 명이 "
+               "단독으로 받은 경우는 몇 %일까요?",
+               ["약 12%", "약 30%", "약 50%", "약 75%"],
+               nearest(["약 12%", "약 30%", "약 50%", "약 75%"], [12, 30, 50, 75],
+                       sole_pct),
+               f"2001~{nb_last}년 4개 분야 시상 {len(sci)}번(연도·분야별 한 번) 중 "
+               f"수상자가 한 명뿐인 시상 {sole}번 ({sole_pct:.1f}%)",
+               "노벨상 하면 한 사람의 얼굴이 떠오르지만, 요즘 연구는 팀으로 "
+               "합니다. 상은 최대 3명까지 나눕니다."),
+        choice("n4", f"1901~1950년과 2001~{nb_last}년, 개인 수상자의 평균 나이"
+               "(수상 연도 - 출생 연도)는 어떻게 달라졌을까요?",
+               ["거의 같다", "약 5살 많아졌다", "약 12살 많아졌다", "약 20살 많아졌다"],
+               nearest(["거의 같다", "약 5살 많아졌다", "약 12살 많아졌다",
+                        "약 20살 많아졌다"], [0, 5, 12, 20], age_diff),
+               f"개인 수상의 '수상 연도 - 출생 연도' 평균이 1901~1950년 "
+               f"{age_old:.1f}세 → 2001~{nb_last}년 {age_new:.1f}세 "
+               f"({age_diff:+.1f}세)",
+               "연구가 빨라졌으니 상도 빨리 받을 것 같지만, 업적을 확인하는 "
+               "기다림은 오히려 길어졌습니다."),
+        choice("n5", f"{nb_first}~{nb_last}년, 노벨재단 기록에서 태어날 당시 나라 "
+               "이름이 한국(Korea·South Korea)인 수상자는 몇 명일까요?",
+               ["1명", "2명", "3명", "4명 이상"],
+               f"{len(kor_born)}명" if len(kor_born) < 4 else "4명 이상",
+               "태어날 당시 나라 이름이 Korea 또는 South Korea인 수상자: "
+               + " · ".join(f"{n} ({y}년, {c})" for y, n, c in kor_born),
+               "국적으로만 세면 놓칩니다. 다른 나라 국적이지만 한국에서 "
+               "태어난 수상자도 있습니다."),
+    ],
+    caveat="나이는 '수상 연도 - 출생 연도'로 셌으므로 실제 만 나이와 1살까지 "
+           "다를 수 있습니다. 출생국은 노벨재단이 적은 '태어날 당시의 나라 "
+           "이름'이라 센 값이 아니라 이름 붙이기에 달려 있습니다. "
+           + " · ".join(n for y, n, c in kor_born if c == "Korea")
+           + "는 대한제국·일제강점기에 태어났는데 노벨재단은 Korea로 적었습니다. "
+           "다른 출처가 다르게 적으면 한국 출생 수가 달라집니다. "
+           f"{nb_last}년 수상자까지 들어 있어, 내년에 데이터를 다시 받으면 "
+           "값이 바뀔 수 있습니다.")
+
 
 # ════════════════════════════════════════════════════════════════
 def main() -> None:
